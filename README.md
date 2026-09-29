@@ -1,8 +1,8 @@
 # Media Device Sync
 
-**Power, input and volume follow your media player.**
+**Power, input, and volume follow your media player.**
 
-A Home Assistant blueprint that makes the gear downstream of a media player behave like one device. Works great with a **Sonos Port or Connect** feeding a receiver or amplifier, and with smart plugs, switches, IR blasters and anything else you can control from Home Assistant.
+A Home Assistant blueprint that makes the gear downstream of a media player behave like one device. Works great with a **Sonos Port, Connect, or Zone Player** feeding a receiver or amplifier, and with smart plugs, switches, IR blasters and anything else you can control from Home Assistant.
 
 Press play and everything turns on, switches to the right input and matches volume. Stop playing and it all shuts off after a delay. No remote, no input hunting, no amp left on all night.
 
