@@ -160,4 +160,4 @@ Inspired by the original *Sonos Connect Sync* blueprint by [Qonstrukt](https://g
 
 ## License
 
-Add a license of your choice here (MIT is a common default for blueprints).
+MIT
