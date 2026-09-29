@@ -1,0 +1,498 @@
+blueprint:
+  name: Media Device Sync
+  description: >
+    Power, input and volume follow your media player.
+
+    When the source player (for example a Sonos Port or Connect) starts playing, this
+    turns on the devices downstream of it, selects the right input, and matches volume.
+    When it has stopped for a while, everything is turned off again.
+
+
+    Works with receivers and amplifiers exposed as media players, smart plugs and
+    switches, and anything else you can control with your own actions (IR blasters,
+    HDMI-CEC, scripts, scenes).
+
+
+    Source names are case-sensitive. Use the exact entry from the receiver's
+    source_list attribute.
+  domain: automation
+  homeassistant:
+    min_version: 2024.10.0
+  input:
+    basic_section:
+      name: Basic setup
+      icon: mdi:speaker
+      description: The player to follow, and what should be switched on and off.
+      collapsed: false
+      input:
+        source_player:
+          name: Source player
+          description: >
+            The media player to follow, for example a Sonos Port or Connect. Any media
+            player works.
+          selector:
+            entity:
+              filter:
+                - domain: media_player
+              multiple: false
+        receiver:
+          name: Receiver / media players to control (optional)
+          description: >
+            Receivers or amplifiers that appear as media players. They are turned on and
+            off, switched to the input below, and can have their volume synced. Leave
+            empty if you only use switches or custom actions.
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain: media_player
+              multiple: true
+        receiver_source:
+          name: Receiver input name (optional)
+          description: >
+            Exact, case-sensitive name of the receiver input the source player is
+            connected to, as listed in the receiver's source_list attribute. Leave blank
+            to skip input selection (for receivers with a single input). When blank,
+            receivers are turned off whenever the source player has been stopped for the
+            turn-off delay, even if they are on another input.
+          default: ""
+          selector:
+            text:
+        power_switches:
+          name: Switches to turn on and off (optional)
+          description: >
+            Smart plugs, switches or other on/off entities, for example a plug feeding an
+            amplifier or powered speakers.
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain:
+                    - switch
+                    - input_boolean
+                    - light
+                    - fan
+                    - remote
+              multiple: true
+    actions_section:
+      name: Custom actions
+      icon: mdi:script-text-play
+      description: >
+        Run anything else when playback starts or stops, such as IR blaster commands,
+        HDMI-CEC, a script or a scene. Runs after switches are turned on and before
+        receivers are configured; on stop it runs after receivers and switches are turned
+        off.
+      collapsed: true
+      input:
+        start_actions:
+          name: Actions when playback starts
+          default: []
+          selector:
+            action:
+        stop_actions:
+          name: Actions when playback has stopped
+          default: []
+          selector:
+            action:
+    volume_section:
+      name: Volume
+      icon: mdi:volume-high
+      description: Keep volume matched, and protect your speakers.
+      collapsed: true
+      input:
+        volume_mode:
+          name: Volume sync
+          description: >
+            Off: never touch volume (except the startup volume below). Source player to
+            devices: copy the source player volume to the receivers. Two-way: also copy
+            receiver volume changes back to the source player.
+          default: both
+          selector:
+            select:
+              mode: dropdown
+              options:
+                - label: Off
+                  value: "off"
+                - label: Source player to devices
+                  value: source_to_devices
+                - label: Two-way
+                  value: both
+        startup_volume:
+          name: Startup volume (%)
+          description: >
+            Volume to set when a receiver is turned on by this automation. 0 means match
+            the source player's volume instead.
+          default: 0
+          selector:
+            number:
+              min: 0
+              max: 100
+              unit_of_measurement: "%"
+              step: 1
+              mode: slider
+        max_volume:
+          name: Maximum volume (%)
+          description: >
+            The highest volume this automation will ever set on a receiver. Volume you set
+            manually on the receiver is not limited.
+          default: 100
+          selector:
+            number:
+              min: 1
+              max: 100
+              unit_of_measurement: "%"
+              step: 1
+              mode: slider
+        sync_volume_buffer_time:
+          name: Volume sync buffer time
+          description: >
+            How long a volume change must hold steady before it is copied to the other
+            device.
+          default: 1000
+          selector:
+            number:
+              min: 500
+              max: 3000
+              unit_of_measurement: milliseconds
+              step: 1
+              mode: slider
+        volume_tolerance:
+          name: Volume tolerance
+          description: >
+            Volume differences smaller than this are ignored, which stops devices bouncing
+            volume back and forth because of rounding. 0.02 is 2%.
+          default: 0.02
+          selector:
+            number:
+              min: 0
+              max: 0.1
+              step: 0.01
+              mode: box
+    behavior_section:
+      name: Behavior and timing
+      icon: mdi:timer-cog-outline
+      description: When things happen, and when they should not.
+      collapsed: true
+      input:
+        turn_off_delay:
+          name: Turn off delay
+          description: How long the source player must be stopped before everything turns off.
+          default: 300
+          selector:
+            number:
+              min: 0
+              max: 3600
+              unit_of_measurement: seconds
+              step: 1
+              mode: slider
+        power_on_settle_time:
+          name: Receiver power-on settle time
+          description: >
+            Extra wait after a receiver reports it is on, before selecting its input.
+            Increase this if the input selection is ignored right after power-on.
+          default: 3
+          selector:
+            number:
+              min: 0
+              max: 30
+              unit_of_measurement: seconds
+              step: 1
+              mode: slider
+        power_on_timeout:
+          name: Receiver power-on timeout
+          description: Maximum time to wait for a receiver to report that it is on.
+          default: 30
+          selector:
+            number:
+              min: 5
+              max: 120
+              unit_of_measurement: seconds
+              step: 1
+              mode: slider
+        protect_other_input:
+          name: Do not take over a receiver in use
+          description: >
+            If a receiver is already on and set to a different input (for example you are
+            watching TV), leave it alone instead of switching it to the source player's
+            input. Needs a receiver input name above.
+          default: false
+          selector:
+            boolean:
+        pause_on_input_change:
+          name: Pause source player when the receiver input changes
+          description: >
+            Pause the source player if you switch a receiver away from its input while
+            it is playing. Needs a receiver input name above.
+          default: true
+          selector:
+            boolean:
+        enable_entities:
+          name: Only run while these are on (optional)
+          description: >
+            Optional on/off helpers, for example an input_boolean. Playback start is
+            ignored unless all of them are on. Turning things off is never blocked.
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain:
+                    - input_boolean
+                    - switch
+                    - binary_sensor
+              multiple: true
+
+mode: queued
+max: 10
+max_exceeded: silent
+
+variables:
+  sonos: !input source_player
+  receivers: !input receiver
+  target_source: !input receiver_source
+  power_switches: !input power_switches
+  enable_entities: !input enable_entities
+  vol_mode: !input volume_mode
+  startup_pct: !input startup_volume
+  max_pct: !input max_volume
+  tolerance: !input volume_tolerance
+  settle_time: !input power_on_settle_time
+  power_on_timeout: !input power_on_timeout
+  protect: !input protect_other_input
+  pause_on_change: !input pause_on_input_change
+  cap: "{{ max_pct | float(100) / 100 }}"
+  startup_vol: "{{ startup_pct | float(0) / 100 }}"
+
+triggers:
+  - trigger: state
+    entity_id: !input source_player
+    to: playing
+    id: sonos_playing
+  - trigger: state
+    entity_id: !input source_player
+    from: playing
+    for:
+      seconds: !input turn_off_delay
+    id: sonos_stopped
+  - trigger: state
+    entity_id: !input receiver
+    attribute: source
+    id: receiver_source_changed
+  - trigger: state
+    entity_id: !input source_player
+    attribute: volume_level
+    for:
+      milliseconds: !input sync_volume_buffer_time
+    id: sonos_volume
+  - trigger: state
+    entity_id: !input receiver
+    attribute: volume_level
+    for:
+      milliseconds: !input sync_volume_buffer_time
+    id: receiver_volume
+
+actions:
+  - choose:
+      # ---------------------------------------------------------------- start
+      - alias: Source player started
+        conditions:
+          - condition: trigger
+            id: sonos_playing
+          - condition: template
+            value_template: >
+              {{ enable_entities | length == 0
+                 or enable_entities | select('is_state', 'on') | list | length
+                    == enable_entities | length }}
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ power_switches | length > 0 }}"
+            then:
+              - action: homeassistant.turn_on
+                target:
+                  entity_id: !input power_switches
+          - sequence: !input start_actions
+          - repeat:
+              for_each: "{{ receivers }}"
+              sequence:
+                - variables:
+                    rx: "{{ repeat.item }}"
+                    was_off: "{{ states(repeat.item) in ['off', 'standby', 'unknown'] }}"
+                    on_other_input: >
+                      {{ target_source != ''
+                         and states(repeat.item) not in ['off', 'standby', 'unknown', 'unavailable']
+                         and state_attr(repeat.item, 'source') != target_source }}
+                - if:
+                    - condition: template
+                      value_template: >
+                        {{ states(rx) != 'unavailable' and not (protect and on_other_input) }}
+                  then:
+                    - if:
+                        - condition: template
+                          value_template: "{{ was_off }}"
+                      then:
+                        - action: media_player.turn_on
+                          target:
+                            entity_id: "{{ rx }}"
+                        - wait_template: >
+                            {{ states(rx) not in ['off', 'standby', 'unknown', 'unavailable'] }}
+                          timeout:
+                            seconds: "{{ power_on_timeout }}"
+                          continue_on_timeout: true
+                        - delay:
+                            seconds: "{{ settle_time }}"
+                    - if:
+                        - condition: template
+                          value_template: >
+                            {{ target_source != ''
+                               and states(rx) not in ['off', 'standby', 'unknown', 'unavailable']
+                               and state_attr(rx, 'source') != target_source }}
+                      then:
+                        - action: media_player.select_source
+                          target:
+                            entity_id: "{{ rx }}"
+                          data:
+                            source: !input receiver_source
+                    - variables:
+                        sv: "{{ state_attr(sonos, 'volume_level') }}"
+                        start_vol: >
+                          {% if was_off and startup_vol > 0 %}
+                            {{ startup_vol }}
+                          {% elif vol_mode != 'off' and sv is number %}
+                            {{ [sv | float(0), cap] | min }}
+                          {% else %}
+                            {{ none }}
+                          {% endif %}
+                    - if:
+                        - condition: template
+                          value_template: "{{ start_vol is number }}"
+                        - condition: template
+                          value_template: >
+                            {{ states(rx) not in ['off', 'standby', 'unknown', 'unavailable'] }}
+                      then:
+                        - delay:
+                            milliseconds: !input sync_volume_buffer_time
+                        - action: media_player.volume_set
+                          target:
+                            entity_id: "{{ rx }}"
+                          data:
+                            volume_level: "{{ start_vol }}"
+
+      # ----------------------------------------------------------------- stop
+      - alias: Source player stopped
+        conditions:
+          - condition: trigger
+            id: sonos_stopped
+          - condition: template
+            value_template: "{{ not is_state(sonos, 'playing') }}"
+        sequence:
+          - variables:
+              other_input_active: >
+                {% set ns = namespace(v=false) %}
+                {% for rx in receivers %}
+                  {% if target_source != ''
+                        and states(rx) not in ['off', 'standby', 'unknown', 'unavailable']
+                        and state_attr(rx, 'source') != target_source %}
+                    {% set ns.v = true %}
+                  {% endif %}
+                {% endfor %}
+                {{ ns.v }}
+          - repeat:
+              for_each: "{{ receivers }}"
+              sequence:
+                - if:
+                    - condition: template
+                      value_template: >
+                        {{ states(repeat.item) not in ['off', 'standby', 'unknown', 'unavailable']
+                           and (target_source == ''
+                                or state_attr(repeat.item, 'source') == target_source) }}
+                  then:
+                    - action: media_player.turn_off
+                      target:
+                        entity_id: "{{ repeat.item }}"
+          - if:
+              - condition: template
+                value_template: "{{ power_switches | length > 0 and not other_input_active }}"
+            then:
+              - action: homeassistant.turn_off
+                target:
+                  entity_id: !input power_switches
+          - if:
+              - condition: template
+                value_template: "{{ not other_input_active }}"
+            then:
+              - sequence: !input stop_actions
+
+      # ------------------------------------------- receiver left its input
+      - alias: Pause source player when the receiver input changes
+        conditions:
+          - condition: trigger
+            id: receiver_source_changed
+          - condition: template
+            value_template: "{{ pause_on_change and target_source != '' }}"
+          - condition: template
+            value_template: >
+              {{ trigger.from_state is not none and trigger.to_state is not none
+                 and trigger.from_state.attributes.source == target_source
+                 and trigger.to_state.attributes.source != target_source
+                 and trigger.to_state.state not in ['off', 'standby', 'unknown', 'unavailable'] }}
+          - condition: template
+            value_template: "{{ is_state(sonos, 'playing') }}"
+        sequence:
+          - action: media_player.media_pause
+            target:
+              entity_id: !input source_player
+
+      # ------------------------------------ source player volume to receivers
+      - alias: Source player volume to devices
+        conditions:
+          - condition: trigger
+            id: sonos_volume
+          - condition: template
+            value_template: "{{ vol_mode != 'off' }}"
+        sequence:
+          - repeat:
+              for_each: "{{ receivers }}"
+              sequence:
+                - variables:
+                    sv: "{{ state_attr(sonos, 'volume_level') }}"
+                    rv: "{{ state_attr(repeat.item, 'volume_level') }}"
+                - if:
+                    - condition: template
+                      value_template: >
+                        {{ states(repeat.item) not in ['off', 'standby', 'unknown', 'unavailable']
+                           and (target_source == ''
+                                or state_attr(repeat.item, 'source') == target_source)
+                           and sv is number and rv is number
+                           and not (sv >= cap and rv >= cap)
+                           and (([sv | float(0), cap] | min) - rv | float(0)) | abs
+                               > tolerance | float(0) }}
+                  then:
+                    - action: media_player.volume_set
+                      target:
+                        entity_id: "{{ repeat.item }}"
+                      data:
+                        volume_level: "{{ [sv | float(0), cap] | min }}"
+
+      # ------------------------------------ receiver volume to source player
+      - alias: Receiver volume to source player
+        conditions:
+          - condition: trigger
+            id: receiver_volume
+          - condition: template
+            value_template: "{{ vol_mode == 'both' }}"
+          - condition: template
+            value_template: >
+              {% set rx = trigger.entity_id %}
+              {% set sv = state_attr(sonos, 'volume_level') %}
+              {% set rv = state_attr(rx, 'volume_level') %}
+              {{ states(rx) not in ['off', 'standby', 'unknown', 'unavailable']
+                 and (target_source == '' or state_attr(rx, 'source') == target_source)
+                 and sv is number and rv is number
+                 and not (sv >= cap and rv >= cap)
+                 and (sv | float(0) - rv | float(0)) | abs > tolerance | float(0) }}
+        sequence:
+          - action: media_player.volume_set
+            target:
+              entity_id: !input source_player
+            data:
+              volume_level: "{{ state_attr(trigger.entity_id, 'volume_level') | float(0) }}"
